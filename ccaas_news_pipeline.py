@@ -27,7 +27,7 @@ SOURCES = {
 
 # Keep dated articles from the last N hours
 # (undated articles are always kept)
-MAX_AGE_HOURS = 96  # <-- change to 24 for "last 24 hours"
+MAX_AGE_HOURS = 48  # <-- changed to 48 hours for today only
 
 # Limit how many articles we scrape per source (avoid going crazy)
 MAX_ARTICLES_PER_SOURCE = 20
@@ -178,6 +178,13 @@ def extract_articles(source_name, url):
         segments = [s for s in path.split("/") if s]
         if len(segments) < 2:
             continue
+        
+        # 3) Filter out common category/page types that aren't articles
+        category_keywords = ['guides', 'definitions', 'opinions', 'podcasts', 
+                           'quizzes', 'techaccelerators', 'tutorials', 'videos',
+                           'news', 'blog', 'category', 'tag', 'author', 'archive']
+        if any(keyword in href.lower() for keyword in category_keywords):
+            continue
 
         if href not in urls:
             urls.append(href)
@@ -299,8 +306,10 @@ Respond ONLY with valid JSON, no surrounding text, in this exact shape:
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     if response.status_code != 200:
-        print("LLM HTTP error on:", article["url"])
-        print("Status:", response.status_code, "| Body:", response.text[:200])
+        print(f"❌ LLM HTTP error on: {article['url']}")
+        print(f"   Status: {response.status_code} | Body: {response.text[:200]}")
+        if response.status_code == 403:
+            print("   ⚠️ 403 Forbidden - Check API key permissions or rate limits")
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     try:
@@ -319,20 +328,32 @@ Respond ONLY with valid JSON, no surrounding text, in this exact shape:
 
         # Try direct JSON parse
         try:
-            return json.loads(text)
-        except Exception:
+            result = json.loads(text)
+            # Validate that we got the expected fields
+            if "engagement" in result and "summary" in result:
+                print(f"   ✅ LLM returned: engagement={result.get('engagement')}, summary_length={len(result.get('summary', ''))}")
+                return result
+            else:
+                print(f"   ⚠️ LLM returned incomplete JSON: {list(result.keys())}")
+        except json.JSONDecodeError:
             # Sometimes the model may add extra text; try to extract the JSON substring
             start = text.find("{")
             end = text.rfind("}")
             if start != -1 and end != -1:
                 try:
-                    return json.loads(text[start: end + 1])
-                except Exception:
-                    pass
+                    result = json.loads(text[start: end + 1])
+                    if "engagement" in result and "summary" in result:
+                        print(f"   ✅ LLM returned (extracted): engagement={result.get('engagement')}, summary_length={len(result.get('summary', ''))}")
+                        return result
+                    else:
+                        print(f"   ⚠️ LLM returned incomplete JSON (extracted): {list(result.keys())}")
+                except Exception as e:
+                    print(f"   ❌ Failed to parse extracted JSON: {e}")
 
         # If parsing totally fails, fall back to safe defaults
-        print("LLM parse error on:", article["url"])
-        print("Raw content snippet:", text[:200])
+        print(f"❌ LLM parse error on: {article['url']}")
+        print(f"   Raw content snippet: {text[:500]}")
+        print("   ⚠️ LLM did not return valid JSON. Using default LOW engagement.")
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     except Exception as e:
@@ -388,11 +409,25 @@ def run_pipeline():
 
     # Deduplicate by URL
     df = pd.DataFrame(combined).drop_duplicates(subset="url")
+    
+    print(f"Found {len(df)} unique articles after deduplication. Sending to LLM...")
 
     processed_rows = []
 
-    for _, row in df.iterrows():
+    for idx, (_, row) in enumerate(df.iterrows(), 1):
+        print(f"\n[{idx}/{len(df)}] Processing: {row['title'][:60]}...")
+        print(f"   URL: {row['url']}")
         ai = analyze_with_llm(row)
+        
+        # Log detailed results
+        engagement = ai.get("engagement", "LOW")
+        has_summary = bool(ai.get("summary", "").strip())
+        has_hook = bool(ai.get("hook", "").strip())
+        
+        if not has_summary and not has_hook:
+            print(f"   ⚠️ LLM returned EMPTY values - likely failed!")
+        else:
+            print(f"   ✅ LLM analysis: engagement={engagement}, summary={has_summary}, hook={has_hook}")
 
         pub_dt = row["published_dt"]
         published_str = (

@@ -40,7 +40,7 @@ SOURCES = {
 
 # Keep dated articles from the last N hours
 # (undated ones are still kept and then filtered by ES relevance)
-MAX_AGE_HOURS = 96  # change to 24 if you want truly "last 24h only"
+MAX_AGE_HOURS = 48  # changed to 48 hours for today only
 
 # Limit number of articles per source per run (safety for very long pages)
 MAX_ARTICLES_PER_SOURCE = 25
