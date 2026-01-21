@@ -6,6 +6,7 @@ import pandas as pd
 from dateutil import parser as dateparser
 from urllib.parse import urlparse
 import warnings
+import time
 
 # Silence XML/HTML parsing warning noise
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
@@ -318,6 +319,9 @@ Respond ONLY with valid JSON, no surrounding text, in this exact shape:
     }
 
     try:
+        print(f"   🔄 Calling LLM API: {ZENDESK_AI_URL}")
+        print(f"   🔑 Using API key: {ZENDESK_AI_KEY[:10]}...{ZENDESK_AI_KEY[-4:] if len(ZENDESK_AI_KEY) > 14 else '***'}")
+        
         response = requests.post(
             ZENDESK_AI_URL,
             headers={
@@ -327,23 +331,38 @@ Respond ONLY with valid JSON, no surrounding text, in this exact shape:
             data=json.dumps(body),
             timeout=45,
         )
+        
+        print(f"   📡 Response status: {response.status_code}")
+        
     except requests.exceptions.RequestException as e:
-        print("LLM network error on:", article["url"], "| Error:", e)
+        print(f"❌ LLM network error on: {article['url']}")
+        print(f"   Error type: {type(e).__name__}")
+        print(f"   Error message: {str(e)}")
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     if response.status_code == 401:
         print("⚠️ LLM 401 Unauthorized – check ZENDESK_AI_KEY and model name.")
+        print(f"   Response body: {response.text[:500]}")
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     if response.status_code != 200:
         print(f"❌ LLM API error on: {article['url']}")
-        print(f"   Status: {response.status_code} | Body: {response.text[:200]}")
-        if response.status_code == 401:
-            print("   ⚠️ 401 Unauthorized - Check ZENDESK_AI_KEY")
-        elif response.status_code == 403:
-            print("   ⚠️ 403 Forbidden - Check API key permissions or rate limits")
+        print(f"   Status: {response.status_code}")
+        print(f"   Response headers: {dict(response.headers)}")
+        print(f"   Response body: {response.text[:500]}")
+        
+        if response.status_code == 403:
+            print("   ⚠️ 403 Forbidden - Possible causes:")
+            print("      - API key expired or invalid")
+            print("      - IP address blocked (Streamlit Cloud IP may be restricted)")
+            print("      - Rate limit exceeded")
+            print("      - Gateway access restrictions")
         elif response.status_code == 429:
             print("   ⚠️ 429 Rate Limited - Too many requests, waiting...")
+            time.sleep(5)  # Wait before retrying
+        elif response.status_code == 401:
+            print("   ⚠️ 401 Unauthorized - Check ZENDESK_AI_KEY")
+        
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     try:
