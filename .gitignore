@@ -26,8 +26,10 @@ wheels/
 # Streamlit
 .streamlit/
 
-# Data files (CSVs with news)
-*.csv
+# Data files (CSVs with news) - but allow news CSVs to be committed
+# *.csv
+!ccaas_news_*.csv
+!es_news_*.csv
 
 # JSON files (seen URLs)
 seen_urls.json
