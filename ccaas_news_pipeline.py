@@ -185,6 +185,21 @@ def extract_articles(source_name, url):
                            'news', 'blog', 'category', 'tag', 'author', 'archive']
         if any(keyword in href.lower() for keyword in category_keywords):
             continue
+        
+        # 4) Filter out contributor/author pages
+        if '/contributor/' in href.lower():
+            continue
+        
+        # 5) Filter out single-segment category pages (e.g., /HR, /CreatorWorkflows)
+        # These are usually category landing pages, not articles
+        if len(segments) == 1:
+            continue
+        
+        # 6) Filter out URLs that look like category pages (short segments, no article-like structure)
+        # Articles usually have longer, more descriptive slugs
+        last_segment = segments[-1] if segments else ""
+        if len(last_segment) < 10 or last_segment.isupper():  # Short or all caps = likely category
+            continue
 
         if href not in urls:
             urls.append(href)
@@ -205,11 +220,20 @@ def extract_articles(source_name, url):
                 continue
 
             title = title_tag.get_text(strip=True)
+            
+            # Skip if title looks like a category/author page
+            if len(title) < 20 or title.lower() in ['home', 'categories', 'authors', 'about']:
+                continue
+            
             paragraphs = art_soup.find_all("p")
             if not paragraphs:
                 continue
 
             snippet = " ".join([p.get_text(strip=True) for p in paragraphs[:3]])[:500]
+            
+            # Skip if snippet is too short (likely not a real article)
+            if len(snippet) < 100:
+                continue
 
             published_dt = extract_published_date(art_soup)
 
@@ -221,8 +245,14 @@ def extract_articles(source_name, url):
                 "published_dt": published_dt,  # may be None
             })
             processed_count += 1
+            print(f"   ✅ Found article: {title[:60]}")
 
-        except Exception:
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                print(f"   ⚠️ Skipping (403 Forbidden): {article_url}")
+            continue
+        except Exception as e:
+            print(f"   ⚠️ Error scraping {article_url}: {type(e).__name__}")
             continue
 
     return articles
@@ -306,10 +336,14 @@ Respond ONLY with valid JSON, no surrounding text, in this exact shape:
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     if response.status_code != 200:
-        print(f"❌ LLM HTTP error on: {article['url']}")
+        print(f"❌ LLM API error on: {article['url']}")
         print(f"   Status: {response.status_code} | Body: {response.text[:200]}")
-        if response.status_code == 403:
+        if response.status_code == 401:
+            print("   ⚠️ 401 Unauthorized - Check ZENDESK_AI_KEY")
+        elif response.status_code == 403:
             print("   ⚠️ 403 Forbidden - Check API key permissions or rate limits")
+        elif response.status_code == 429:
+            print("   ⚠️ 429 Rate Limited - Too many requests, waiting...")
         return {"summary": "", "engagement": "LOW", "hook": ""}
 
     try:
