@@ -1115,128 +1115,15 @@ def main():
         
         st.markdown("---")
         
-        st.markdown("### Refresh News")
+        st.markdown("### Data Updates")
         
-        # Check if running on Streamlit Cloud
-        is_streamlit_cloud = os.environ.get("STREAMLIT_CLOUD", "").lower() == "true" or \
-                            "share.streamlit.io" in os.environ.get("SERVER_NAME", "") or \
-                            "streamlit.app" in os.environ.get("SERVER_NAME", "")
+        st.info("""
+        **📋 Need to update the database?**
         
-        if is_streamlit_cloud:
-            # On Streamlit Cloud: Show info message instead of button
-            st.info("""
-            **📋 Data Updates**
-            
-            News data is updated daily by running the pipelines locally.
-            
-            To refresh the data, run locally:
-            ```bash
-            ./upload_news_to_github.sh
-            ```
-            
-            The dashboard will automatically show the latest data once it's uploaded to GitHub.
-            """)
-        else:
-            # Local: Show logs section first (if they exist in session state)
-            if 'pipeline_logs' in st.session_state and st.session_state.pipeline_logs:
-                with st.expander("📋 View Last Pipeline Logs", expanded=True):
-                    logs = st.session_state.pipeline_logs
-                    if 'ccaas' in logs:
-                        st.markdown("**CCaaS Pipeline Output:**")
-                        st.code(logs['ccaas'][-2000:], language="text")
-                    if 'es' in logs:
-                        st.markdown("**ES Pipeline Output:**")
-                        st.code(logs['es'][-2000:], language="text")
-                    if st.button("Clear Logs"):
-                        st.session_state.pipeline_logs = {}
-                        st.rerun()
-            
-            if st.button("🔄 Run Pipelines & Refresh", use_container_width=True):
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                try:
-                    status_text.text("🔄 Starting CCaaS pipeline...")
-                    progress_bar.progress(25)
-                    
-                    # Run CCaaS pipeline
-                    result_ccaas = subprocess.run(
-                        [sys.executable, "ccaas_news_pipeline.py"],
-                        capture_output=True,
-                        text=True,
-                        timeout=600,
-                        cwd=Path(".").absolute()
-                    )
-                    
-                    status_text.text("🔄 Starting ES pipeline...")
-                    progress_bar.progress(50)
-                    
-                    # Run ES pipeline
-                    result_es = subprocess.run(
-                        [sys.executable, "es_news_pipeline.py"],
-                        capture_output=True,
-                        text=True,
-                        timeout=600,
-                        cwd=Path(".").absolute()
-                    )
-                    
-                    progress_bar.progress(100)
-                    
-                    # Store logs in session state for persistent viewing
-                    logs = {}
-                    if result_ccaas.stdout:
-                        logs['ccaas'] = result_ccaas.stdout
-                    if result_es.stdout:
-                        logs['es'] = result_es.stdout
-                    if result_ccaas.stderr:
-                        logs['ccaas_error'] = result_ccaas.stderr
-                    if result_es.stderr:
-                        logs['es_error'] = result_es.stderr
-                    
-                    st.session_state.pipeline_logs = logs
-                    
-                    if result_ccaas.returncode == 0 and result_es.returncode == 0:
-                        status_text.empty()
-                        progress_bar.empty()
-                        
-                        # Show pipeline output for debugging in expander
-                        with st.expander("📋 View Pipeline Logs", expanded=True):
-                            if result_ccaas.stdout:
-                                st.markdown("**CCaaS Pipeline Output:**")
-                                st.code(result_ccaas.stdout[-2000:], language="text")  # Last 2000 chars
-                            if result_es.stdout:
-                                st.markdown("**ES Pipeline Output:**")
-                                st.code(result_es.stdout[-2000:], language="text")  # Last 2000 chars
-                            if not result_ccaas.stdout and not result_es.stdout:
-                                st.info("No output captured. Check Streamlit Cloud logs for details.")
-                        
-                        st.success("✅ News refreshed successfully! Reloading...")
-                        time.sleep(1)  # Brief pause to show success message
-                        st.rerun()
-                    else:
-                        status_text.empty()
-                        progress_bar.empty()
-                        st.error("❌ Error running pipelines. Check the output below.")
-                        
-                        # Show errors in expander
-                        with st.expander("📋 View Pipeline Errors", expanded=True):
-                            if result_ccaas.returncode != 0:
-                                st.error("**CCaaS Pipeline Error:**")
-                                error_output = result_ccaas.stderr if result_ccaas.stderr else result_ccaas.stdout
-                                st.code(error_output[-2000:] if error_output else "No error output", language="text")
-                            if result_es.returncode != 0:
-                                st.error("**ES Pipeline Error:**")
-                                error_output = result_es.stderr if result_es.stderr else result_es.stdout
-                                st.code(error_output[-2000:] if error_output else "No error output", language="text")
-                except subprocess.TimeoutExpired:
-                    status_text.empty()
-                    progress_bar.empty()
-                    st.error("⏱️ Pipelines timed out after 10 minutes. This may happen with many articles.")
-                except Exception as e:
-                    status_text.empty()
-                    progress_bar.empty()
-                    st.error(f"❌ Error: {str(e)}")
-                    st.exception(e)
+        Please contact **Benjamin Miranda (Market Intelligence Lead)** to request a data refresh.
+        
+        The dashboard automatically displays the latest available data.
+        """)
         
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### Date Selection")
