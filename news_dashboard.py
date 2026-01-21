@@ -9,6 +9,7 @@ import sys
 import time
 import re
 import html
+import os
 
 # Page config - ensure sidebar is always visible
 st.set_page_config(
@@ -1088,21 +1089,41 @@ def main():
     with st.sidebar:
         st.markdown("### Refresh News")
         
-        # Show logs section first (if they exist in session state)
-        if 'pipeline_logs' in st.session_state and st.session_state.pipeline_logs:
-            with st.expander("📋 View Last Pipeline Logs", expanded=True):
-                logs = st.session_state.pipeline_logs
-                if 'ccaas' in logs:
-                    st.markdown("**CCaaS Pipeline Output:**")
-                    st.code(logs['ccaas'][-2000:], language="text")
-                if 'es' in logs:
-                    st.markdown("**ES Pipeline Output:**")
-                    st.code(logs['es'][-2000:], language="text")
-                if st.button("Clear Logs"):
-                    st.session_state.pipeline_logs = {}
-                    st.rerun()
+        # Check if running on Streamlit Cloud
+        is_streamlit_cloud = os.environ.get("STREAMLIT_CLOUD", "").lower() == "true" or \
+                            "share.streamlit.io" in os.environ.get("SERVER_NAME", "") or \
+                            "streamlit.app" in os.environ.get("SERVER_NAME", "")
         
-        if st.button("🔄 Run Pipelines & Refresh", use_container_width=True):
+        if is_streamlit_cloud:
+            # On Streamlit Cloud: Show info message instead of button
+            st.info("""
+            **📋 Data Updates**
+            
+            News data is updated daily by running the pipelines locally.
+            
+            To refresh the data, run locally:
+            ```bash
+            ./upload_news_to_github.sh
+            ```
+            
+            The dashboard will automatically show the latest data once it's uploaded to GitHub.
+            """)
+        else:
+            # Local: Show logs section first (if they exist in session state)
+            if 'pipeline_logs' in st.session_state and st.session_state.pipeline_logs:
+                with st.expander("📋 View Last Pipeline Logs", expanded=True):
+                    logs = st.session_state.pipeline_logs
+                    if 'ccaas' in logs:
+                        st.markdown("**CCaaS Pipeline Output:**")
+                        st.code(logs['ccaas'][-2000:], language="text")
+                    if 'es' in logs:
+                        st.markdown("**ES Pipeline Output:**")
+                        st.code(logs['es'][-2000:], language="text")
+                    if st.button("Clear Logs"):
+                        st.session_state.pipeline_logs = {}
+                        st.rerun()
+            
+            if st.button("🔄 Run Pipelines & Refresh", use_container_width=True):
             progress_bar = st.progress(0)
             status_text = st.empty()
             
