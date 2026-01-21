@@ -6,6 +6,7 @@ import glob
 import json
 import subprocess
 import sys
+import time
 
 # Page config - ensure sidebar is always visible
 st.set_page_config(
@@ -1071,37 +1072,61 @@ def main():
     with st.sidebar:
         st.markdown("### Refresh News")
         if st.button("🔄 Run Pipelines & Refresh", use_container_width=True):
-            with st.spinner("Running news pipelines... This may take a few minutes."):
-                try:
-                    # Run CCaaS pipeline
-                    result_ccaas = subprocess.run(
-                        [sys.executable, "ccaas_news_pipeline.py"],
-                        capture_output=True,
-                        text=True,
-                        timeout=600
-                    )
-                    
-                    # Run ES pipeline
-                    result_es = subprocess.run(
-                        [sys.executable, "es_news_pipeline.py"],
-                        capture_output=True,
-                        text=True,
-                        timeout=600
-                    )
-                    
-                    if result_ccaas.returncode == 0 and result_es.returncode == 0:
-                        st.success("✅ News refreshed successfully!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Error running pipelines. Check the output below.")
-                        if result_ccaas.returncode != 0:
-                            st.code(result_ccaas.stderr, language="text")
-                        if result_es.returncode != 0:
-                            st.code(result_es.stderr, language="text")
-                except subprocess.TimeoutExpired:
-                    st.error("⏱️ Pipelines timed out. They may still be running in the background.")
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            try:
+                status_text.text("🔄 Starting CCaaS pipeline...")
+                progress_bar.progress(25)
+                
+                # Run CCaaS pipeline
+                result_ccaas = subprocess.run(
+                    [sys.executable, "ccaas_news_pipeline.py"],
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    cwd=Path(".").absolute()
+                )
+                
+                status_text.text("🔄 Starting ES pipeline...")
+                progress_bar.progress(50)
+                
+                # Run ES pipeline
+                result_es = subprocess.run(
+                    [sys.executable, "es_news_pipeline.py"],
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    cwd=Path(".").absolute()
+                )
+                
+                progress_bar.progress(100)
+                
+                if result_ccaas.returncode == 0 and result_es.returncode == 0:
+                    status_text.empty()
+                    progress_bar.empty()
+                    st.success("✅ News refreshed successfully! Reloading...")
+                    time.sleep(1)  # Brief pause to show success message
+                    st.rerun()
+                else:
+                    status_text.empty()
+                    progress_bar.empty()
+                    st.error("❌ Error running pipelines. Check the output below.")
+                    if result_ccaas.returncode != 0:
+                        st.error("**CCaaS Pipeline Error:**")
+                        st.code(result_ccaas.stderr if result_ccaas.stderr else result_ccaas.stdout, language="text")
+                    if result_es.returncode != 0:
+                        st.error("**ES Pipeline Error:**")
+                        st.code(result_es.stderr if result_es.stderr else result_es.stdout, language="text")
+            except subprocess.TimeoutExpired:
+                status_text.empty()
+                progress_bar.empty()
+                st.error("⏱️ Pipelines timed out after 10 minutes. This may happen with many articles.")
+            except Exception as e:
+                status_text.empty()
+                progress_bar.empty()
+                st.error(f"❌ Error: {str(e)}")
+                st.exception(e)
         
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### Date Selection")
