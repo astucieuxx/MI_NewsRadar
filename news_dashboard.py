@@ -7,6 +7,8 @@ import json
 import subprocess
 import sys
 import time
+import re
+import html
 
 # Page config - ensure sidebar is always visible
 st.set_page_config(
@@ -1030,6 +1032,20 @@ def generate_slack_post(article):
     url = safe_str(article.get('url', ''), '')
     hook = safe_str(article.get('hook', ''), '')
     
+    # Strip HTML tags and decode HTML entities
+    def clean_text(text):
+        if not text:
+            return ''
+        # Remove HTML tags using a simple regex
+        text = re.sub(r'<[^>]+>', '', text)
+        # Decode HTML entities
+        text = html.unescape(text)
+        return text.strip()
+    
+    title = clean_text(title)
+    summary = clean_text(summary)
+    hook = clean_text(hook)
+    
     # Key Insight: Use hook if available, otherwise use title
     if hook and hook.strip():
         key_insight = hook.strip()
@@ -1071,6 +1087,21 @@ def main():
     # Sidebar for date selection - MUST be first
     with st.sidebar:
         st.markdown("### Refresh News")
+        
+        # Show logs section first (if they exist in session state)
+        if 'pipeline_logs' in st.session_state and st.session_state.pipeline_logs:
+            with st.expander("📋 View Last Pipeline Logs", expanded=True):
+                logs = st.session_state.pipeline_logs
+                if 'ccaas' in logs:
+                    st.markdown("**CCaaS Pipeline Output:**")
+                    st.code(logs['ccaas'][-2000:], language="text")
+                if 'es' in logs:
+                    st.markdown("**ES Pipeline Output:**")
+                    st.code(logs['es'][-2000:], language="text")
+                if st.button("Clear Logs"):
+                    st.session_state.pipeline_logs = {}
+                    st.rerun()
+        
         if st.button("🔄 Run Pipelines & Refresh", use_container_width=True):
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -1102,9 +1133,34 @@ def main():
                 
                 progress_bar.progress(100)
                 
+                # Store logs in session state for persistent viewing
+                logs = {}
+                if result_ccaas.stdout:
+                    logs['ccaas'] = result_ccaas.stdout
+                if result_es.stdout:
+                    logs['es'] = result_es.stdout
+                if result_ccaas.stderr:
+                    logs['ccaas_error'] = result_ccaas.stderr
+                if result_es.stderr:
+                    logs['es_error'] = result_es.stderr
+                
+                st.session_state.pipeline_logs = logs
+                
                 if result_ccaas.returncode == 0 and result_es.returncode == 0:
                     status_text.empty()
                     progress_bar.empty()
+                    
+                    # Show pipeline output for debugging in expander
+                    with st.expander("📋 View Pipeline Logs", expanded=True):
+                        if result_ccaas.stdout:
+                            st.markdown("**CCaaS Pipeline Output:**")
+                            st.code(result_ccaas.stdout[-2000:], language="text")  # Last 2000 chars
+                        if result_es.stdout:
+                            st.markdown("**ES Pipeline Output:**")
+                            st.code(result_es.stdout[-2000:], language="text")  # Last 2000 chars
+                        if not result_ccaas.stdout and not result_es.stdout:
+                            st.info("No output captured. Check Streamlit Cloud logs for details.")
+                    
                     st.success("✅ News refreshed successfully! Reloading...")
                     time.sleep(1)  # Brief pause to show success message
                     st.rerun()
@@ -1112,12 +1168,17 @@ def main():
                     status_text.empty()
                     progress_bar.empty()
                     st.error("❌ Error running pipelines. Check the output below.")
-                    if result_ccaas.returncode != 0:
-                        st.error("**CCaaS Pipeline Error:**")
-                        st.code(result_ccaas.stderr if result_ccaas.stderr else result_ccaas.stdout, language="text")
-                    if result_es.returncode != 0:
-                        st.error("**ES Pipeline Error:**")
-                        st.code(result_es.stderr if result_es.stderr else result_es.stdout, language="text")
+                    
+                    # Show errors in expander
+                    with st.expander("📋 View Pipeline Errors", expanded=True):
+                        if result_ccaas.returncode != 0:
+                            st.error("**CCaaS Pipeline Error:**")
+                            error_output = result_ccaas.stderr if result_ccaas.stderr else result_ccaas.stdout
+                            st.code(error_output[-2000:] if error_output else "No error output", language="text")
+                        if result_es.returncode != 0:
+                            st.error("**ES Pipeline Error:**")
+                            error_output = result_es.stderr if result_es.stderr else result_es.stdout
+                            st.code(error_output[-2000:] if error_output else "No error output", language="text")
             except subprocess.TimeoutExpired:
                 status_text.empty()
                 progress_bar.empty()
