@@ -930,6 +930,26 @@ def get_available_dates():
     return sorted(dates, reverse=True)
 
 
+def get_total_news_count():
+    """Get total count of all news articles collected historically (deduplicated by URL)."""
+    base_path = Path(".")
+    ccaas_files = glob.glob(str(base_path / "ccaas_news_*.csv"))
+    es_files = glob.glob(str(base_path / "es_news_*.csv"))
+    
+    all_urls = set()
+    
+    for file in ccaas_files + es_files:
+        try:
+            df = pd.read_csv(file)
+            if 'url' in df.columns:
+                all_urls.update(df['url'].dropna().astype(str))
+        except Exception as e:
+            # Skip files that can't be read
+            continue
+    
+    return len(all_urls)
+
+
 def engagement_badge(engagement):
     """Return HTML badge for engagement level."""
     engagement = str(engagement).upper()
@@ -1087,6 +1107,14 @@ def sort_by_engagement(df):
 def main():
     # Sidebar for date selection - MUST be first
     with st.sidebar:
+        # Total news count (historical)
+        total_count = get_total_news_count()
+        st.markdown(f"### 📊 Total News Collected")
+        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin-bottom: 1rem;'>{total_count:,}</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.75rem; color: #6b7280; margin-bottom: 1.5rem;'>Unique articles (all time)</div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
         st.markdown("### Refresh News")
         
         # Check if running on Streamlit Cloud
