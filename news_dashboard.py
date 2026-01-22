@@ -1199,8 +1199,14 @@ def render_news_card(article, card_id):
     category = safe_str(article.get('category', ''), '')
     
     # If summary is empty, provide a helpful message
+    # Only show this if it's a valid article (has a proper title and URL)
     if not summary or summary.strip() == '':
-        summary = f"Click 'Read Article →' to view the full article from {source}."
+        # Check if this looks like a valid article (not a category page)
+        if title and len(title) > 20 and url and url != '#' and '/category/' not in url.lower():
+            summary = f"Summary not available. Click 'Read Article →' to view the full article from {source}."
+        else:
+            # This looks like a category page or invalid article, skip rendering
+            return
     
     # Format published date
     pub_display = ''

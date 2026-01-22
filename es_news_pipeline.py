@@ -225,6 +225,14 @@ def extract_articles(source_name, url):
         # Require at least two segments to avoid home and broad category pages
         if len(segments) < 2:
             continue
+        
+        # Filter out category pages explicitly
+        if '/category/' in href.lower() or '/tag/' in href.lower():
+            continue
+        
+        # Filter out URLs that end with just category name (e.g., /hr-technology/)
+        if len(segments) == 1 and any(cat in href.lower() for cat in ['category', 'tag', 'author', 'archive']):
+            continue
 
         if href not in urls:
             urls.append(href)
@@ -247,6 +255,13 @@ def extract_articles(source_name, url):
                 continue
 
             title = title_tag.get_text(strip=True)
+            
+            # Skip if title is just a category name (too generic)
+            generic_titles = ['hr technology', 'hr tech', 'itsm', 'employee service', 
+                            'category', 'tags', 'archives', 'authors']
+            if title.lower() in generic_titles or len(title) < 20:
+                continue
+            
             paragraphs = art_soup.find_all("p")
             if not paragraphs:
                 continue
