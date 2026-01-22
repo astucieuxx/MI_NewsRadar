@@ -951,9 +951,11 @@ def load_news_data(date_str=None):
     base_path = Path(".")
     ccaas_file = base_path / f"ccaas_news_{date_str}.csv"
     es_file = base_path / f"es_news_{date_str}.csv"
+    cx_ai_file = base_path / f"cx_ai_news_{date_str}.csv"
     
     ccaas_df = None
     es_df = None
+    cx_ai_df = None
     
     if ccaas_file.exists():
         try:
@@ -969,7 +971,14 @@ def load_news_data(date_str=None):
         except Exception as e:
             st.warning(f"Error loading ES data: {e}")
     
-    return ccaas_df, es_df
+    if cx_ai_file.exists():
+        try:
+            cx_ai_df = pd.read_csv(cx_ai_file)
+            cx_ai_df['category'] = 'CX AI'
+        except Exception as e:
+            st.warning(f"Error loading CX AI data: {e}")
+    
+    return ccaas_df, es_df, cx_ai_df
 
 
 def get_available_dates():
@@ -977,12 +986,14 @@ def get_available_dates():
     base_path = Path(".")
     ccaas_files = glob.glob(str(base_path / "ccaas_news_*.csv"))
     es_files = glob.glob(str(base_path / "es_news_*.csv"))
+    cx_ai_files = glob.glob(str(base_path / "cx_ai_news_*.csv"))
     
     dates = set()
-    for file in ccaas_files + es_files:
+    for file in ccaas_files + es_files + cx_ai_files:
         try:
-            # Extract date from filename: ccaas_news_YYYY-MM-DD.csv
-            date_str = file.split("_")[-1].replace(".csv", "")
+            # Extract date from filename: ccaas_news_YYYY-MM-DD.csv or cx_ai_news_YYYY-MM-DD.csv
+            parts = file.split("_")
+            date_str = parts[-1].replace(".csv", "")
             datetime.datetime.strptime(date_str, "%Y-%m-%d")
             dates.add(date_str)
         except:
@@ -996,10 +1007,11 @@ def get_total_news_count():
     base_path = Path(".")
     ccaas_files = glob.glob(str(base_path / "ccaas_news_*.csv"))
     es_files = glob.glob(str(base_path / "es_news_*.csv"))
+    cx_ai_files = glob.glob(str(base_path / "cx_ai_news_*.csv"))
     
     all_urls = set()
     
-    for file in ccaas_files + es_files:
+    for file in ccaas_files + es_files + cx_ai_files:
         try:
             df = pd.read_csv(file)
             if 'url' in df.columns:
@@ -1090,12 +1102,24 @@ def is_ai_cs_strategic_news(article):
     return (mentions_vendor or has_strategic_keyword) and is_ai_related
 
 
-def filter_ai_cs_news(df):
+def filter_ai_cs_news(df, cx_ai_df=None):
     """
     Filtra artículos relevantes para AI in CS:
-    - Debe pasar la detección por keywords/vendors
-    - Y tener engagement HIGH o MEDIUM (movimientos estratégicos)
+    - Si existe cx_ai_df (pipeline dedicado), usarlo directamente
+    - Si no, filtrar df por keywords/vendors o is_ai_cs_relevant
+    - Solo HIGH y MEDIUM engagement (movimientos estratégicos)
+    - Deduplica por URL para evitar duplicados
     """
+    # Si tenemos el pipeline dedicado de CX AI, usarlo directamente
+    if cx_ai_df is not None and not cx_ai_df.empty:
+        # El pipeline ya filtra solo artículos relevantes, solo aplicar engagement filter
+        filtered = cx_ai_df[cx_ai_df['engagement'].isin(['HIGH', 'MEDIUM'])]
+        # Deduplicar por URL (por si acaso)
+        if 'url' in filtered.columns:
+            filtered = filtered.drop_duplicates(subset='url', keep='first')
+        return filtered
+    
+    # Fallback: filtrar desde otros pipelines
     if df.empty:
         return df
     
@@ -1121,7 +1145,13 @@ def filter_ai_cs_news(df):
         ai_filtered = df[df.apply(lambda row: is_ai_cs_strategic_news(row.to_dict()), axis=1)]
     
     # Solo HIGH y MEDIUM (movimientos estratégicos)
-    return ai_filtered[ai_filtered['engagement'].isin(['HIGH', 'MEDIUM'])]
+    ai_filtered = ai_filtered[ai_filtered['engagement'].isin(['HIGH', 'MEDIUM'])]
+    
+    # CRITICAL: Deduplicar por URL para evitar duplicados del mismo artículo en CCaaS y ES
+    if 'url' in ai_filtered.columns:
+        ai_filtered = ai_filtered.drop_duplicates(subset='url', keep='first')
+    
+    return ai_filtered
 
 
 def engagement_badge(engagement):
@@ -1337,9 +1367,9 @@ def main():
     st.markdown('<div class="info-text">Compilation of relevant news from the last 24 hours</div>', unsafe_allow_html=True)
     
     # Load data
-    ccaas_df, es_df = load_news_data(selected_date)
+    ccaas_df, es_df, cx_ai_df = load_news_data(selected_date)
     
-    # Combine dataframes
+    # Combine dataframes (excluding cx_ai_df - it's handled separately for CX AI tab)
     all_news = []
     if ccaas_df is not None and not ccaas_df.empty:
         all_news.append(ccaas_df)
@@ -1442,7 +1472,8 @@ def main():
                 render_news_card(row.to_dict(), f"es-{idx}")
     
     with tab4:
-        ai_cs_filtered = filter_ai_cs_news(combined_df)
+        # Use dedicated CX AI pipeline if available, otherwise filter from combined_df
+        ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
         if ai_cs_filtered.empty:
             st.info("No CX AI strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
