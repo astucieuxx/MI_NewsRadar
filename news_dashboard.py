@@ -1044,69 +1044,88 @@ def main():
     # Sort by engagement
     combined_df = sort_by_engagement(combined_df)
     
-    # Statistics with Zendesk colors
-    col1, col2, col3, col4 = st.columns(4)
+    # Calculate filtered DataFrames for each tab (before tabs are created)
+    # All News tab uses combined_df as-is
+    all_news_df = combined_df.copy()
     
-    with col1:
-        total = len(combined_df)
-        st.markdown(f"""
-        <div class="stat-box">
-            <div class="stat-label">Total Articles</div>
-            <div class="stat-number">{total}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # CX AI tab
+    ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
+    if not ai_cs_filtered.empty:
+        ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
     
-    with col2:
-        high_count = len(combined_df[combined_df['engagement'] == 'HIGH'])
-        st.markdown(f"""
-        <div class="stat-box stat-box-high">
-            <div class="stat-label">High Relevance</div>
-            <div class="stat-number">{high_count}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # CCaaS tab
+    ccaas_filtered = combined_df[combined_df['category'] == 'CCaaS'] if 'category' in combined_df.columns else pd.DataFrame()
+    if not ccaas_filtered.empty:
+        ccaas_filtered = sort_by_engagement(ccaas_filtered)
     
-    with col3:
-        medium_count = len(combined_df[combined_df['engagement'] == 'MEDIUM'])
-        st.markdown(f"""
-        <div class="stat-box stat-box-medium">
-            <div class="stat-label">Medium Relevance</div>
-            <div class="stat-number">{medium_count}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # ES tab
+    es_filtered = combined_df[combined_df['category'] == 'ES'] if 'category' in combined_df.columns else pd.DataFrame()
+    if not es_filtered.empty:
+        es_filtered = sort_by_engagement(es_filtered)
     
-    with col4:
-        low_count = len(combined_df[combined_df['engagement'] == 'LOW'])
-        st.markdown(f"""
-        <div class="stat-box stat-box-low">
-            <div class="stat-label">Low Relevance</div>
-            <div class="stat-number">{low_count}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Function to render stat boxes based on a DataFrame
+    def render_stat_boxes(df):
+        """Render stat boxes based on the provided DataFrame."""
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            total = len(df)
+            st.markdown(f"""
+            <div class="stat-box">
+                <div class="stat-label">Total Articles</div>
+                <div class="stat-number">{total}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            high_count = len(df[df['engagement'] == 'HIGH']) if 'engagement' in df.columns else 0
+            st.markdown(f"""
+            <div class="stat-box stat-box-high">
+                <div class="stat-label">High Relevance</div>
+                <div class="stat-number">{high_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            medium_count = len(df[df['engagement'] == 'MEDIUM']) if 'engagement' in df.columns else 0
+            st.markdown(f"""
+            <div class="stat-box stat-box-medium">
+                <div class="stat-label">Medium Relevance</div>
+                <div class="stat-number">{medium_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            low_count = len(df[df['engagement'] == 'LOW']) if 'engagement' in df.columns else 0
+            st.markdown(f"""
+            <div class="stat-box stat-box-low">
+                <div class="stat-label">Low Relevance</div>
+                <div class="stat-number">{low_count}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Category tabs with Zendesk styling
     tab1, tab2, tab3, tab4 = st.tabs(["All News", "CX AI", "CCaaS", "ES"])
     
     with tab1:
         # All News tab - first position
-        if combined_df.empty:
+        render_stat_boxes(all_news_df)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if all_news_df.empty:
             st.info("No articles match the selected filters. Try adjusting your relevance filters in the sidebar.")
         else:
-            st.markdown(f"### {len(combined_df)} articles")
+            st.markdown(f"### {len(all_news_df)} articles")
             st.markdown("---")
-            for idx, row in combined_df.iterrows():
+            for idx, row in all_news_df.iterrows():
                 render_news_card(row.to_dict(), f"all-{idx}")
     
     with tab2:
         # CX AI tab - second position
-        # Use dedicated CX AI pipeline if available, otherwise filter from combined_df
-        ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
+        render_stat_boxes(ai_cs_filtered)
+        st.markdown("<br>", unsafe_allow_html=True)
         if ai_cs_filtered.empty:
             st.info("No CX AI strategic news found for this date. This tab shows news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
-            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
-            ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
             st.markdown(f"### {len(ai_cs_filtered)} articles")
             st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
@@ -1115,12 +1134,11 @@ def main():
     
     with tab3:
         # CCaaS tab - third position
-        ccaas_filtered = combined_df[combined_df['category'] == 'CCaaS'] if 'category' in combined_df.columns else pd.DataFrame()
+        render_stat_boxes(ccaas_filtered)
+        st.markdown("<br>", unsafe_allow_html=True)
         if ccaas_filtered.empty:
             st.info("No CCaaS articles found for this date.")
         else:
-            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
-            ccaas_filtered = sort_by_engagement(ccaas_filtered)
             st.markdown(f"### {len(ccaas_filtered)} articles")
             st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Contact Center as a Service news and updates (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
@@ -1129,12 +1147,11 @@ def main():
     
     with tab4:
         # ES tab - fourth position (renamed from Employee Service)
-        es_filtered = combined_df[combined_df['category'] == 'ES'] if 'category' in combined_df.columns else pd.DataFrame()
+        render_stat_boxes(es_filtered)
+        st.markdown("<br>", unsafe_allow_html=True)
         if es_filtered.empty:
             st.info("No ES articles found for this date.")
         else:
-            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
-            es_filtered = sort_by_engagement(es_filtered)
             st.markdown(f"### {len(es_filtered)} articles")
             st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Employee Service news including ITSM, ITOM, ESM, and HR service management (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
