@@ -1099,7 +1099,10 @@ def main():
         if ccaas_filtered.empty:
             st.info("No CCaaS articles found for this date.")
         else:
+            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
+            ccaas_filtered = sort_by_engagement(ccaas_filtered)
             st.markdown(f"### {len(ccaas_filtered)} articles")
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Contact Center as a Service news and updates (sorted by relevance: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in ccaas_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ccaas-{idx}")
@@ -1110,7 +1113,10 @@ def main():
         if es_filtered.empty:
             st.info("No ES articles found for this date.")
         else:
+            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
+            es_filtered = sort_by_engagement(es_filtered)
             st.markdown(f"### {len(es_filtered)} articles")
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Employee Service news including ITSM, ITOM, ESM, and HR service management (sorted by relevance: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in es_filtered.iterrows():
                 render_news_card(row.to_dict(), f"es-{idx}")
