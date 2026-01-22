@@ -1440,10 +1440,20 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Category tabs with Zendesk styling
-    tab1, tab2, tab3, tab4 = st.tabs(["CX AI", "All News", "CCaaS", "ES"])
+    tab1, tab2, tab3, tab4 = st.tabs(["All News", "CX AI", "CCaaS", "ES"])
     
     with tab1:
-        # CX AI tab - first position
+        # All News tab - first position
+        if combined_df.empty:
+            st.info("No articles match the selected filters. Try adjusting your priority filters in the sidebar.")
+        else:
+            st.markdown(f"### {len(combined_df)} articles")
+            st.markdown("---")
+            for idx, row in combined_df.iterrows():
+                render_news_card(row.to_dict(), f"all-{idx}")
+    
+    with tab2:
+        # CX AI tab - second position
         # Use dedicated CX AI pipeline if available, otherwise filter from combined_df
         ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
         if ai_cs_filtered.empty:
@@ -1457,18 +1467,8 @@ def main():
             for idx, row in ai_cs_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ai-cs-{idx}")
     
-    with tab2:
-        # All News tab
-        if combined_df.empty:
-            st.info("No articles match the selected filters. Try adjusting your priority filters in the sidebar.")
-        else:
-            st.markdown(f"### {len(combined_df)} articles")
-            st.markdown("---")
-            for idx, row in combined_df.iterrows():
-                render_news_card(row.to_dict(), f"all-{idx}")
-    
     with tab3:
-        # CCaaS tab
+        # CCaaS tab - third position
         ccaas_filtered = combined_df[combined_df['category'] == 'CCaaS'] if 'category' in combined_df.columns else pd.DataFrame()
         if ccaas_filtered.empty:
             st.info("No CCaaS articles found for this date.")
@@ -1479,7 +1479,7 @@ def main():
                 render_news_card(row.to_dict(), f"ccaas-{idx}")
     
     with tab4:
-        # ES tab (renamed from Employee Service)
+        # ES tab - fourth position (renamed from Employee Service)
         es_filtered = combined_df[combined_df['category'] == 'ES'] if 'category' in combined_df.columns else pd.DataFrame()
         if es_filtered.empty:
             st.info("No ES articles found for this date.")
