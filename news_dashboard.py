@@ -1477,6 +1477,8 @@ def main():
         if ai_cs_filtered.empty:
             st.info("No CX AI strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
+            # Sort by engagement (HIGH first, then MEDIUM)
+            ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
             st.markdown(f"### {len(ai_cs_filtered)} articles")
             st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (HIGH & MEDIUM priority only)</div>", unsafe_allow_html=True)
             st.markdown("---")
