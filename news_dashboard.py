@@ -340,6 +340,17 @@ st.markdown("""
         display: block !important;
         transform: translateX(0) !important;
         min-width: 21rem !important;
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+    }
+    
+    /* Sidebar content container - prevent overflow */
+    [data-testid="stSidebar"] > div:first-child {
+        padding: 1rem 1.5rem !important;
+        max-height: calc(100vh - 2rem) !important;
+        overflow-y: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
     
     /* Force sidebar to stay open */
@@ -361,19 +372,21 @@ st.markdown("""
     /* Make sidebar content more compact */
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
         color: #1a1a1a;
-        font-size: 1rem !important;
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
+        font-size: 0.875rem !important;
+        margin-top: 0.25rem !important;
+        margin-bottom: 0.25rem !important;
+        font-weight: 600 !important;
     }
     
     [data-testid="stSidebar"] p {
         color: #4b5563;
-        font-size: 0.875rem !important;
-        margin: 0.25rem 0 !important;
+        font-size: 0.75rem !important;
+        margin: 0.15rem 0 !important;
+        line-height: 1.4 !important;
     }
     
     [data-testid="stSidebar"] .stMarkdown {
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.25rem !important;
     }
     
     [data-testid="stSidebar"] .stButton {
@@ -382,21 +395,45 @@ st.markdown("""
     
     [data-testid="stSidebar"] .stSelectbox,
     [data-testid="stSidebar"] .stCheckbox {
-        margin-bottom: 0.2rem !important;
+        margin-bottom: 0.1rem !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > label {
+        font-size: 0.75rem !important;
+        margin-bottom: 0.25rem !important;
     }
     
     [data-testid="stSidebar"] .stCheckbox > label {
-        padding-top: 0.15rem !important;
-        padding-bottom: 0.15rem !important;
+        padding-top: 0.1rem !important;
+        padding-bottom: 0.1rem !important;
         margin-bottom: 0 !important;
+        font-size: 0.875rem !important;
     }
     
     [data-testid="stSidebar"] .stCheckbox > div {
-        margin-bottom: 0.2rem !important;
+        margin-bottom: 0.1rem !important;
     }
     
     [data-testid="stSidebar"] hr {
         margin: 0.5rem 0 !important;
+    }
+    
+    /* Compact info/warning boxes in sidebar */
+    [data-testid="stSidebar"] .stAlert {
+        padding: 0.5rem 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+        font-size: 0.75rem !important;
+        border-radius: 6px !important;
+    }
+    
+    [data-testid="stSidebar"] .stAlert > div {
+        padding: 0 !important;
+    }
+    
+    [data-testid="stSidebar"] .stAlert p {
+        margin: 0 !important;
+        font-size: 0.75rem !important;
+        line-height: 1.4 !important;
     }
     
     /* Change checkbox color to Zendesk green */
@@ -437,6 +474,30 @@ st.markdown("""
     
     [data-testid="stSidebar"] p {
         color: #4b5563;
+    }
+    
+    /* Make selectbox more compact in sidebar */
+    [data-testid="stSidebar"] .stSelectbox > div > div {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.875rem !important;
+        min-height: 2rem !important;
+    }
+    
+    /* Reduce spacing in sidebar elements */
+    [data-testid="stSidebar"] > div > div {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Compact spacing for all sidebar children */
+    [data-testid="stSidebar"] * {
+        box-sizing: border-box !important;
+    }
+    
+    /* Ensure no extra padding in sidebar */
+    [data-testid="stSidebar"] [class*="block-container"],
+    [data-testid="stSidebar"] [class*="element-container"] {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
     }
     
     /* Tab styling */
@@ -1107,26 +1168,19 @@ def sort_by_engagement(df):
 def main():
     # Sidebar for date selection - MUST be first
     with st.sidebar:
-        # Total news count (historical)
+        # Compact header with total count
         total_count = get_total_news_count()
-        st.markdown(f"### 📊 Total News Collected")
-        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 700; color: #1a1a1a; margin-bottom: 1rem;'>{total_count:,}</div>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size: 0.75rem; color: #6b7280; margin-bottom: 1.5rem;'>Unique articles (all time)</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style='padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 1rem;'>
+            <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;'>Total News Collected</div>
+            <div style='font-size: 1.75rem; font-weight: 700; color: #1a1a1a;'>{total_count:,}</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown("---")
-        
-        st.markdown("### Data Updates")
-        
-        st.info("""
-        **📋 Need to update the database?**
-        
-        Please contact **Benjamin Miranda (Market Intelligence Lead)** to request a data refresh.
-        
-        The dashboard automatically displays the latest available data.
-        """)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### Date Selection")
+        # Compact date selection
+        st.markdown("""
+        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.5rem;'>Date Selection</div>
+        """, unsafe_allow_html=True)
         available_dates = get_available_dates()
         
         # Default to today's date if available, otherwise most recent
@@ -1147,14 +1201,31 @@ def main():
             selected_date = datetime.date.today().isoformat()
             st.warning("No CSV files found.")
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### Priority Filters")
+        # Compact priority filters
+        st.markdown("""
+        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.75rem;'>Priority Filters</div>
+        """, unsafe_allow_html=True)
         show_high = st.checkbox("HIGH Priority", value=True)
         show_medium = st.checkbox("MEDIUM Priority", value=True)
         show_low = st.checkbox("LOW Priority", value=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Benjamin Miranda**<br>Market Intelligence Lead", unsafe_allow_html=True)
+        # Compact data updates info
+        st.markdown("""
+        <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;'>
+            <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;'>Data Updates</div>
+            <div style='font-size: 0.75rem; color: #4b5563; line-height: 1.5;'>
+                Need to update? Contact <strong>Benjamin Miranda</strong> (Market Intelligence Lead)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Compact attribution at bottom
+        st.markdown("""
+        <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; font-size: 0.75rem; color: #6b7280;'>
+            <strong style='color: #1a1a1a;'>Benjamin Miranda</strong><br>
+            Market Intelligence Lead
+        </div>
+        """, unsafe_allow_html=True)
     
     # Header without container box - after sidebar (only once)
     st.markdown('<div class="main-header">News Radar</div>', unsafe_allow_html=True)
