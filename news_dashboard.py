@@ -1115,6 +1115,7 @@ def main():
             st.info("No articles match the selected filters. Try adjusting your relevance filters in the sidebar.")
         else:
             st.markdown(f"### {len(all_news_df)} articles")
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Comprehensive view of all CCaaS, Employee Service, and CX AI news from the last 24 hours (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in all_news_df.iterrows():
                 render_news_card(row.to_dict(), f"all-{idx}")
@@ -1127,7 +1128,7 @@ def main():
             st.info("No CX AI strategic news found for this date. This tab shows news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
             st.markdown(f"### {len(ai_cs_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem — acquisitions, partnerships, product launches, and market shifts (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in ai_cs_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ai-cs-{idx}")
@@ -1140,7 +1141,7 @@ def main():
             st.info("No CCaaS articles found for this date.")
         else:
             st.markdown(f"### {len(ccaas_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Contact Center as a Service news and updates (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Contact Center as a Service industry news — product updates, company announcements, market trends, and competitive intelligence (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in ccaas_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ccaas-{idx}")
@@ -1153,7 +1154,7 @@ def main():
             st.info("No ES articles found for this date.")
         else:
             st.markdown(f"### {len(es_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Employee Service news including ITSM, ITOM, ESM, and HR service management (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Employee Service and IT Service Management news — covering ITSM, ITOM, ESM platforms, HR service management, and workforce technology (sorted by relevance: High → Medium → Low)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in es_filtered.iterrows():
                 render_news_card(row.to_dict(), f"es-{idx}")
