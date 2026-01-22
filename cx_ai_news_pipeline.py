@@ -44,8 +44,9 @@ SOURCES = {
     "MarTechSeries": "https://martechseries.com/",
     
     # Additional CX-focused sources
-    "MyCustomer": "https://www.mycustomer.com/",
-    "CustomerExperienceInsight": "https://www.cxinsight.com/",
+    # Note: Some sources may require JavaScript or have different structures
+    # "MyCustomer": "https://www.mycustomer.com/",  # Temporarily disabled - needs review
+    # "CustomerExperienceInsight": "https://www.cxinsight.com/",  # Temporarily disabled - needs review
 }
 
 # Keep dated articles from the last N hours
@@ -195,7 +196,11 @@ def extract_articles(source_name, url):
         if not same_domain(href, url):
             continue
 
-        # 2) Filter out home/category pages:
+        # 2) Filter out URLs with fragments (comments, anchors, etc.)
+        if any(fragment in href.lower() for fragment in ["#respond", "#comments", "#comment", "#reply", "#discussion"]):
+            continue
+        
+        # 3) Filter out home/category pages:
         #    keep URLs where the path has at least 2 segments,
         #    e.g. /contact-center/some-article-slug
         path = urlparse(href).path
@@ -203,26 +208,30 @@ def extract_articles(source_name, url):
         if len(segments) < 2:
             continue
         
-        # 3) Filter out common category/page types that aren't articles
+        # 4) Filter out common category/page types that aren't articles
         category_keywords = ['guides', 'definitions', 'opinions', 'podcasts', 
                            'quizzes', 'techaccelerators', 'tutorials', 'videos',
                            'news', 'blog', 'category', 'tag', 'author', 'archive']
         if any(keyword in href.lower() for keyword in category_keywords):
             continue
         
-        # 4) Filter out contributor/author pages
+        # 5) Filter out contributor/author pages
         if '/contributor/' in href.lower():
             continue
         
-        # 5) Filter out single-segment category pages (e.g., /HR, /CreatorWorkflows)
+        # 6) Filter out single-segment category pages (e.g., /HR, /CreatorWorkflows)
         # These are usually category landing pages, not articles
         if len(segments) == 1:
             continue
         
-        # 6) Filter out URLs that look like category pages (short segments, no article-like structure)
+        # 7) Filter out URLs that look like category pages (short segments, no article-like structure)
         # Articles usually have longer, more descriptive slugs
         last_segment = segments[-1] if segments else ""
         if len(last_segment) < 10 or last_segment.isupper():  # Short or all caps = likely category
+            continue
+        
+        # 8) Filter out generic messages/announcements (especially for SiliconAngle)
+        if any(generic in href.lower() for generic in ["/message-from-", "/announcement", "/notice"]):
             continue
 
         if href not in urls:
@@ -247,6 +256,11 @@ def extract_articles(source_name, url):
             
             # Skip if title looks like a category/author page
             if len(title) < 20 or title.lower() in ['home', 'categories', 'authors', 'about']:
+                continue
+            
+            # Skip generic messages/announcements (especially SiliconAngle)
+            generic_titles = ['a message from', 'announcement', 'notice', 'welcome', 'update from']
+            if any(generic in title.lower() for generic in generic_titles):
                 continue
             
             paragraphs = art_soup.find_all("p")
@@ -525,8 +539,19 @@ def run_pipeline():
         print("No recent (or undated) articles after filtering.")
         return []
 
-    # Deduplicate by URL
-    df = pd.DataFrame(combined).drop_duplicates(subset="url")
+    # Deduplicate by URL (remove fragments like #respond, #comments first)
+    for art in combined:
+        if art.get("url"):
+            # Remove URL fragments for deduplication
+            art["url_base"] = art["url"].split("#")[0]
+    
+    # Create DataFrame and deduplicate by base URL
+    df = pd.DataFrame(combined)
+    if "url_base" in df.columns:
+        df = df.drop_duplicates(subset="url_base", keep='first')
+        df = df.drop(columns=['url_base'])
+    else:
+        df = df.drop_duplicates(subset="url", keep='first')
     
     print(f"Found {len(df)} unique articles after deduplication. Sending to LLM...")
 
@@ -570,9 +595,17 @@ def run_pipeline():
         })
 
     out_df = pd.DataFrame(processed_rows)
+    
+    # Final deduplication by URL (in case LLM returned duplicates)
+    if not out_df.empty and 'url' in out_df.columns:
+        # Remove URL fragments for final deduplication
+        out_df['url_base'] = out_df['url'].str.split('#').str[0]
+        out_df = out_df.drop_duplicates(subset='url_base', keep='first')
+        out_df = out_df.drop(columns=['url_base'])
+    
     filename = f"cx_ai_news_{datetime.date.today().isoformat()}.csv"
     out_df.to_csv(filename, index=False, encoding="utf-8")
-    print(f"\nSaved {len(processed_rows)} CX AI relevant rows to {filename}")
+    print(f"\nSaved {len(out_df)} CX AI relevant rows to {filename}")
 
     return processed_rows
 
