@@ -1011,6 +1011,119 @@ def get_total_news_count():
     return len(all_urls)
 
 
+def safe_str(value, default=''):
+    """Safely convert a value to string, handling NaN, None, and float types."""
+    if pd.isna(value) or value is None:
+        return default
+    if isinstance(value, float):
+        return default
+    return str(value).strip() if str(value).strip() else default
+
+
+# ============================
+# AI IN CS ECOSYSTEM DETECTION
+# ============================
+
+# AI CS Ecosystem vendors by layer (from Q4 2025 Ecosystem Map)
+AI_CS_ECOSYSTEM_VENDORS = {
+    # CS Platforms (Helpdesks/CRMs)
+    'CS Platforms': ['Zendesk', 'Salesforce', 'Microsoft', 'HubSpot', 'Freshworks', 
+                     'ServiceNow', 'Intercom', 'Gorgias'],
+    # CC Platforms
+    'CCaaS': ['Genesys', 'NICE', 'Five9', 'RingCentral', '8x8', '8x8'],
+    'CPaaS': ['Twilio', 'Vonage', 'Infobip'],
+    # AI Agents (Autonomous)
+    'AI Agents': ['Sierra', 'Ada', 'Crescendo', 'Decagon', 'Forethought', 'PolyAI', 'ASAPP'],
+    # Conversational AI Agent Builders
+    'Conversational AI': ['Kore.ai', 'Yellow.ai', 'Cognigy', 'Capacity', 'Replicant', 'Parloa'],
+    # Agent Assist & Workforce Intel
+    'Agent Assist': ['Cresta', 'Uniphore', 'Observe.AI', 'Gong', 'Assembled', 'Calabrio'],
+    # Knowledge Management Platforms
+    'Knowledge Management': ['Guru', 'Document360', 'eGain', 'Confluence', 'KMS Lighthouse', 'Shelf', 'Notion'],
+    # AI Infrastructure Providers
+    'AI Infrastructure': ['OpenAI', 'Gemini', 'LLaMA', 'AWS', 'Microsoft Azure', 'Google Cloud', 
+                          'Google Cloud Platform', 'Databricks', 'Snowflake']
+}
+
+# Strategic movement keywords
+STRATEGIC_MOVEMENT_KEYWORDS = [
+    'acquisition', 'acquired', 'merger', 'partnership', 'partners with', 'partnered',
+    'announces', 'launches', 'releases', 'unveils', 'introduces', 'rolls out',
+    'investment', 'funding', 'raises', 'strategic', 'alliance', 'strategic partnership',
+    'integration', 'collaboration', 'joint venture', 'teams up', 'joins forces'
+]
+
+# AI-related keywords
+AI_KEYWORDS = [
+    'ai', 'artificial intelligence', 'machine learning', 'llm', 'gpt', 'chatgpt',
+    'agentic', 'copilot', 'autonomous', 'generative ai', 'genai', 'neural',
+    'deep learning', 'natural language', 'nlp', 'conversational ai', 'voice ai',
+    'ai agent', 'ai chatbot', 'ai assistant', 'ai-powered', 'ai-driven'
+]
+
+
+def is_ai_cs_strategic_news(article):
+    """
+    Detecta si un artículo es relevante para AI en Customer Service:
+    1. Menciona vendors del ecosistema AI CS
+    2. Incluye keywords de movimientos estratégicos
+    3. Está relacionado con AI
+    """
+    title = safe_str(article.get('title', ''), '')
+    summary = safe_str(article.get('summary', ''), '')
+    hook = safe_str(article.get('hook', ''), '')
+    
+    # Combine all text for analysis
+    text = f"{title} {summary} {hook}".lower()
+    
+    # Check for ecosystem vendors (case-insensitive)
+    all_vendors = [v for vendors in AI_CS_ECOSYSTEM_VENDORS.values() for v in vendors]
+    mentions_vendor = any(vendor.lower() in text for vendor in all_vendors)
+    
+    # Check for strategic movement keywords
+    has_strategic_keyword = any(keyword.lower() in text for keyword in STRATEGIC_MOVEMENT_KEYWORDS)
+    
+    # Check for AI keywords
+    is_ai_related = any(keyword.lower() in text for keyword in AI_KEYWORDS)
+    
+    # Must be: (vendor OR strategic) AND AI-related
+    return (mentions_vendor or has_strategic_keyword) and is_ai_related
+
+
+def filter_ai_cs_news(df):
+    """
+    Filtra artículos relevantes para AI in CS:
+    - Debe pasar la detección por keywords/vendors
+    - Y tener engagement HIGH o MEDIUM (movimientos estratégicos)
+    """
+    if df.empty:
+        return df
+    
+    # Si el CSV tiene la columna is_ai_cs_relevant, usarla primero
+    if 'is_ai_cs_relevant' in df.columns:
+        # Normalize is_ai_cs_relevant: handle string "True"/"False", boolean, or NaN
+        def normalize_is_ai_cs_relevant(value):
+            if pd.isna(value):
+                return False
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() in ("true", "1", "yes")
+            return bool(value)
+        
+        # Usar la columna si existe, pero también aplicar detección como fallback
+        ai_filtered = df[df.apply(lambda row: 
+            normalize_is_ai_cs_relevant(row.get('is_ai_cs_relevant', False)) or is_ai_cs_strategic_news(row.to_dict()), 
+            axis=1)]
+    else:
+        # Fallback: detección por keywords/vendors
+        # Convert Series to dict for is_ai_cs_strategic_news function
+        ai_filtered = df[df.apply(lambda row: is_ai_cs_strategic_news(row.to_dict()), axis=1)]
+    
+    # Solo HIGH y MEDIUM (movimientos estratégicos)
+    return ai_filtered[ai_filtered['engagement'].isin(['HIGH', 'MEDIUM'])]
+
+
 def engagement_badge(engagement):
     """Return HTML badge for engagement level."""
     engagement = str(engagement).upper()
@@ -1020,15 +1133,6 @@ def engagement_badge(engagement):
         return '<span class="engagement-medium">MEDIUM</span>'
     else:
         return '<span class="engagement-low">LOW</span>'
-
-
-def safe_str(value, default=''):
-    """Safely convert a value to string, handling NaN, None, and float types."""
-    if pd.isna(value) or value is None:
-        return default
-    if isinstance(value, float):
-        return default
-    return str(value).strip() if str(value).strip() else default
 
 
 def render_news_card(article, card_id):
@@ -1306,7 +1410,7 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Category tabs with Zendesk styling
-    tab1, tab2, tab3 = st.tabs(["All News", "CCaaS", "Employee Service"])
+    tab1, tab2, tab3, tab4 = st.tabs(["All News", "CCaaS", "Employee Service", "AI in CX"])
     
     with tab1:
         if combined_df.empty:
@@ -1336,6 +1440,17 @@ def main():
             st.markdown("---")
             for idx, row in es_filtered.iterrows():
                 render_news_card(row.to_dict(), f"es-{idx}")
+    
+    with tab4:
+        ai_cs_filtered = filter_ai_cs_news(combined_df)
+        if ai_cs_filtered.empty:
+            st.info("No AI in CX strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
+        else:
+            st.markdown(f"### {len(ai_cs_filtered)} articles")
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (HIGH & MEDIUM priority only)</div>", unsafe_allow_html=True)
+            st.markdown("---")
+            for idx, row in ai_cs_filtered.iterrows():
+                render_news_card(row.to_dict(), f"ai-cs-{idx}")
 
 
 if __name__ == "__main__":

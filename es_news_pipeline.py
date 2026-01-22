@@ -375,10 +375,21 @@ Follow these steps:
 3) Write a SHORT Slack hook (MAX 12 words) that is punchy and specific.
    It should make a CC / ES GTM team want to click.
 
+4) Determine if this article is specifically about AI in Customer Service / Contact Center:
+   - Mentions AI/ML/LLM features in CS platforms (Zendesk, Salesforce, ServiceNow, HubSpot, Freshworks, Intercom, Gorgias, etc.)
+   - Covers AI agents, chatbots, copilots, or autonomous resolution in CS/CCaaS
+   - Discusses AI partnerships, acquisitions, or features in CCaaS/CS platforms
+   - Focuses on AI infrastructure (OpenAI, AWS, Azure, Google Cloud, etc.) specifically for CS use cases
+   - Mentions vendors from the AI CS ecosystem: Genesys, NICE, Five9, RingCentral, 8x8, Twilio, Vonage, Sierra, Ada, Crescendo, Forethought, PolyAI, ASAPP, Kore.ai, Yellow.ai, Cognigy, Capacity, Replicant, Parloa, Cresta, Uniphore, Observe.AI, Gong, Assembled, Calabrio, etc.
+   
+   Set "is_ai_cs_relevant": true if the article is primarily about AI in CS/CCaaS context.
+   Set "is_ai_cs_relevant": false if AI is mentioned but not CS-focused, or if it's general AI news without CS context.
+
 Return ONLY a valid JSON object with EXACTLY these keys:
   "summary"   -> string
   "engagement" -> "HIGH" or "MEDIUM" or "LOW"
   "hook"      -> string
+  "is_ai_cs_relevant" -> true or false
 """
 
     body = {
@@ -400,16 +411,16 @@ Return ONLY a valid JSON object with EXACTLY these keys:
         )
     except requests.exceptions.RequestException as e:
         print("LLM network error on:", article["url"], "| Error:", e)
-        return {"summary": "", "engagement": "LOW", "hook": ""}
+        return {"summary": "", "engagement": "LOW", "hook": "", "is_ai_cs_relevant": False}
 
     if response.status_code == 401:
         print("⚠️ LLM 401 Unauthorized – check ZENDESK_AI_KEY and model name.")
-        return {"summary": "", "engagement": "LOW", "hook": ""}
+        return {"summary": "", "engagement": "LOW", "hook": "", "is_ai_cs_relevant": False}
 
     if response.status_code != 200:
         print("LLM HTTP error on:", article["url"])
         print("Status:", response.status_code, "| Body:", response.text[:200])
-        return {"summary": "", "engagement": "LOW", "hook": ""}
+        return {"summary": "", "engagement": "LOW", "hook": "", "is_ai_cs_relevant": False}
 
     try:
         data = response.json()
@@ -433,16 +444,25 @@ Return ONLY a valid JSON object with EXACTLY these keys:
         if engagement not in {"HIGH", "MEDIUM", "LOW"}:
             engagement = "LOW"
 
+        # Ensure is_ai_cs_relevant is present, default to False if missing
+        is_ai_cs_relevant = parsed.get("is_ai_cs_relevant", False)
+        # Handle string "true"/"false" or boolean
+        if isinstance(is_ai_cs_relevant, str):
+            is_ai_cs_relevant = is_ai_cs_relevant.lower() in ("true", "1", "yes")
+        elif not isinstance(is_ai_cs_relevant, bool):
+            is_ai_cs_relevant = False
+
         return {
             "summary": parsed.get("summary", "").strip(),
             "engagement": engagement,
             "hook": parsed.get("hook", "").strip(),
+            "is_ai_cs_relevant": is_ai_cs_relevant,
         }
 
     except Exception as e:
         print("LLM parse error on:", article["url"], "| Error:", e)
         print("Raw response snippet:", response.text[:200])
-        return {"summary": "", "engagement": "LOW", "hook": ""}
+        return {"summary": "", "engagement": "LOW", "hook": "", "is_ai_cs_relevant": False}
 
 
 # ============================
@@ -537,6 +557,7 @@ def run_pipeline():
             "summary": ai.get("summary", ""),
             "engagement": ai.get("engagement", "LOW"),
             "hook": ai.get("hook", ""),
+            "is_ai_cs_relevant": ai.get("is_ai_cs_relevant", False),
         })
 
         # Gentle pacing for the gateway
