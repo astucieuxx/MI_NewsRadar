@@ -49,8 +49,10 @@ st.markdown("""
         font-size: 2.5rem;
         font-weight: 700;
         color: #1a1a1a;
+        margin-top: 0 !important;
         margin-bottom: 0.5rem;
         letter-spacing: -0.02em;
+        padding-top: 0 !important;
     }
     
     .sub-header {
@@ -608,11 +610,19 @@ st.markdown("""
     /* Main content area */
     section[data-testid="stMain"] {
         background: #ffffff;
+        padding-top: 0 !important;
     }
     
     /* Block container */
     .block-container {
         background: #ffffff;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    
+    /* Remove top padding from first element */
+    .block-container > div:first-child {
+        padding-top: 0 !important;
     }
     
     /* News card styling */
