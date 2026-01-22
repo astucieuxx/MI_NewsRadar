@@ -478,9 +478,30 @@ st.markdown("""
     
     /* Make selectbox more compact in sidebar */
     [data-testid="stSidebar"] .stSelectbox > div > div {
-        padding: 0.4rem 0.75rem !important;
+        padding: 0.5rem 0.75rem !important;
         font-size: 0.875rem !important;
-        min-height: 2rem !important;
+        min-height: 2.5rem !important;
+        line-height: 1.5 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    /* Ensure selectbox text is fully visible */
+    [data-testid="stSidebar"] .stSelectbox > div > div > div {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: normal !important;
+    }
+    
+    /* Selectbox container - ensure full width */
+    [data-testid="stSidebar"] .stSelectbox {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    /* Selectbox dropdown options */
+    [data-testid="stSidebar"] .stSelectbox [role="listbox"] {
+        max-height: 300px !important;
     }
     
     /* Reduce spacing in sidebar elements */
