@@ -1107,13 +1107,13 @@ def filter_ai_cs_news(df, cx_ai_df=None):
     Filtra artículos relevantes para AI in CS:
     - Si existe cx_ai_df (pipeline dedicado), usarlo directamente
     - Si no, filtrar df por keywords/vendors o is_ai_cs_relevant
-    - Solo HIGH y MEDIUM engagement (movimientos estratégicos)
+    - Incluye todos los engagement levels (HIGH, MEDIUM, LOW)
     - Deduplica por URL para evitar duplicados
     """
     # Si tenemos el pipeline dedicado de CX AI, usarlo directamente
     if cx_ai_df is not None and not cx_ai_df.empty:
-        # El pipeline ya filtra solo artículos relevantes, solo aplicar engagement filter
-        filtered = cx_ai_df[cx_ai_df['engagement'].isin(['HIGH', 'MEDIUM'])]
+        # El pipeline ya filtra solo artículos relevantes, incluir todos los engagement levels
+        filtered = cx_ai_df  # No filtrar por engagement, incluir todos
         # Deduplicar por URL (por si acaso)
         if 'url' in filtered.columns:
             filtered = filtered.drop_duplicates(subset='url', keep='first')
@@ -1144,8 +1144,8 @@ def filter_ai_cs_news(df, cx_ai_df=None):
         # Convert Series to dict for is_ai_cs_strategic_news function
         ai_filtered = df[df.apply(lambda row: is_ai_cs_strategic_news(row.to_dict()), axis=1)]
     
-    # Solo HIGH y MEDIUM (movimientos estratégicos)
-    ai_filtered = ai_filtered[ai_filtered['engagement'].isin(['HIGH', 'MEDIUM'])]
+    # Incluir todos los engagement levels (HIGH, MEDIUM, LOW)
+    # No filtrar por engagement aquí, mostrar todos
     
     # CRITICAL: Deduplicar por URL para evitar duplicados del mismo artículo en CCaaS y ES
     if 'url' in ai_filtered.columns:
@@ -1477,10 +1477,10 @@ def main():
         if ai_cs_filtered.empty:
             st.info("No CX AI strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
-            # Sort by engagement (HIGH first, then MEDIUM)
+            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
             ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
             st.markdown(f"### {len(ai_cs_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (HIGH & MEDIUM priority only)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by priority: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in ai_cs_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ai-cs-{idx}")
