@@ -1410,7 +1410,7 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Category tabs with Zendesk styling
-    tab1, tab2, tab3, tab4 = st.tabs(["All News", "CCaaS", "Employee Service", "AI in CX"])
+    tab1, tab2, tab3, tab4 = st.tabs(["All News", "CCaaS", "Employee Service", "CX AI"])
     
     with tab1:
         if combined_df.empty:
@@ -1444,7 +1444,7 @@ def main():
     with tab4:
         ai_cs_filtered = filter_ai_cs_news(combined_df)
         if ai_cs_filtered.empty:
-            st.info("No AI in CX strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
+            st.info("No CX AI strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
         else:
             st.markdown(f"### {len(ai_cs_filtered)} articles")
             st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (HIGH & MEDIUM priority only)</div>", unsafe_allow_html=True)
