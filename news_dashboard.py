@@ -961,13 +961,13 @@ def main():
             selected_date = datetime.date.today().isoformat()
             st.warning("No CSV files found.")
         
-        # Compact priority filters
+        # Compact relevance filters
         st.markdown("""
-        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.75rem;'>Priority Filters</div>
+        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.75rem;'>Relevance Filters</div>
         """, unsafe_allow_html=True)
-        show_high = st.checkbox("HIGH Priority", value=True)
-        show_medium = st.checkbox("MEDIUM Priority", value=True)
-        show_low = st.checkbox("LOW Priority", value=True)
+        show_high = st.checkbox("HIGH Relevance", value=True)
+        show_medium = st.checkbox("MEDIUM Relevance", value=True)
+        show_low = st.checkbox("LOW Relevance", value=True)
         
         # Compact data updates info
         st.markdown("""
@@ -1040,7 +1040,7 @@ def main():
         high_count = len(combined_df[combined_df['engagement'] == 'HIGH'])
         st.markdown(f"""
         <div class="stat-box stat-box-high">
-            <div class="stat-label">HIGH Priority</div>
+            <div class="stat-label">HIGH Relevance</div>
             <div class="stat-number">{high_count}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1049,7 +1049,7 @@ def main():
         medium_count = len(combined_df[combined_df['engagement'] == 'MEDIUM'])
         st.markdown(f"""
         <div class="stat-box stat-box-medium">
-            <div class="stat-label">MEDIUM Priority</div>
+            <div class="stat-label">MEDIUM Relevance</div>
             <div class="stat-number">{medium_count}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1058,7 +1058,7 @@ def main():
         low_count = len(combined_df[combined_df['engagement'] == 'LOW'])
         st.markdown(f"""
         <div class="stat-box stat-box-low">
-            <div class="stat-label">LOW Priority</div>
+            <div class="stat-label">LOW Relevance</div>
             <div class="stat-number">{low_count}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1071,7 +1071,7 @@ def main():
     with tab1:
         # All News tab - first position
         if combined_df.empty:
-            st.info("No articles match the selected filters. Try adjusting your priority filters in the sidebar.")
+            st.info("No articles match the selected filters. Try adjusting your relevance filters in the sidebar.")
         else:
             st.markdown(f"### {len(combined_df)} articles")
             st.markdown("---")
@@ -1088,7 +1088,7 @@ def main():
             # Sort by engagement (HIGH first, then MEDIUM, then LOW)
             ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
             st.markdown(f"### {len(ai_cs_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by priority: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by relevance: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
             st.markdown("---")
             for idx, row in ai_cs_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ai-cs-{idx}")
