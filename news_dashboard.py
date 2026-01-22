@@ -1440,9 +1440,25 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Category tabs with Zendesk styling
-    tab1, tab2, tab3, tab4 = st.tabs(["All News", "CCaaS", "Employee Service", "CX AI"])
+    tab1, tab2, tab3, tab4 = st.tabs(["CX AI", "All News", "CCaaS", "ES"])
     
     with tab1:
+        # CX AI tab - first position
+        # Use dedicated CX AI pipeline if available, otherwise filter from combined_df
+        ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
+        if ai_cs_filtered.empty:
+            st.info("No CX AI strategic news found for this date. This tab shows news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
+        else:
+            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
+            ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
+            st.markdown(f"### {len(ai_cs_filtered)} articles")
+            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by priority: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
+            st.markdown("---")
+            for idx, row in ai_cs_filtered.iterrows():
+                render_news_card(row.to_dict(), f"ai-cs-{idx}")
+    
+    with tab2:
+        # All News tab
         if combined_df.empty:
             st.info("No articles match the selected filters. Try adjusting your priority filters in the sidebar.")
         else:
@@ -1451,7 +1467,8 @@ def main():
             for idx, row in combined_df.iterrows():
                 render_news_card(row.to_dict(), f"all-{idx}")
     
-    with tab2:
+    with tab3:
+        # CCaaS tab
         ccaas_filtered = combined_df[combined_df['category'] == 'CCaaS'] if 'category' in combined_df.columns else pd.DataFrame()
         if ccaas_filtered.empty:
             st.info("No CCaaS articles found for this date.")
@@ -1461,29 +1478,16 @@ def main():
             for idx, row in ccaas_filtered.iterrows():
                 render_news_card(row.to_dict(), f"ccaas-{idx}")
     
-    with tab3:
+    with tab4:
+        # ES tab (renamed from Employee Service)
         es_filtered = combined_df[combined_df['category'] == 'ES'] if 'category' in combined_df.columns else pd.DataFrame()
         if es_filtered.empty:
-            st.info("No Employee Service articles found for this date.")
+            st.info("No ES articles found for this date.")
         else:
             st.markdown(f"### {len(es_filtered)} articles")
             st.markdown("---")
             for idx, row in es_filtered.iterrows():
                 render_news_card(row.to_dict(), f"es-{idx}")
-    
-    with tab4:
-        # Use dedicated CX AI pipeline if available, otherwise filter from combined_df
-        ai_cs_filtered = filter_ai_cs_news(combined_df, cx_ai_df)
-        if ai_cs_filtered.empty:
-            st.info("No CX AI strategic news found for this date. This tab shows HIGH and MEDIUM priority news about AI movements in the Customer Service ecosystem (acquisitions, partnerships, features, etc.).")
-        else:
-            # Sort by engagement (HIGH first, then MEDIUM, then LOW)
-            ai_cs_filtered = sort_by_engagement(ai_cs_filtered)
-            st.markdown(f"### {len(ai_cs_filtered)} articles")
-            st.markdown("<div style='font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;'>Strategic AI movements in Customer Service ecosystem (sorted by priority: HIGH → MEDIUM → LOW)</div>", unsafe_allow_html=True)
-            st.markdown("---")
-            for idx, row in ai_cs_filtered.iterrows():
-                render_news_card(row.to_dict(), f"ai-cs-{idx}")
 
 
 if __name__ == "__main__":
