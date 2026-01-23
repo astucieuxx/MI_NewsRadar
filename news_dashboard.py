@@ -1173,7 +1173,8 @@ def main():
         <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;'>
             <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;'>Data Updates</div>
             <div style='font-size: 0.75rem; color: #4b5563; line-height: 1.5;'>
-                Need to update? Contact <strong>Benjamin Miranda</strong> (Market Intelligence Lead)
+                Need to update?<br>
+                Contact <strong>Benjamin Miranda</strong> (Market Intelligence Lead)
             </div>
         </div>
         """, unsafe_allow_html=True)
