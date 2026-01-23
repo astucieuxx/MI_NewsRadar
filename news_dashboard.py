@@ -1174,7 +1174,8 @@ def main():
             <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;'>Data Updates</div>
             <div style='font-size: 0.75rem; color: #4b5563; line-height: 1.5;'>
                 Need to update?<br>
-                Contact <strong>Benjamin Miranda</strong> (Market Intelligence Lead)
+                Contact <strong>Benjamin Miranda</strong><br>
+                Market Intelligence Lead
             </div>
         </div>
         """, unsafe_allow_html=True)
