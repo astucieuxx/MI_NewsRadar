@@ -8,16 +8,27 @@ cd "$(dirname "$0")"
 echo "📰 Running News Pipelines Locally..."
 echo ""
 
-# Activate virtual environment
-source venv/bin/activate
+# Use venv Python directly (no need to activate)
+VENV_PYTHON="./venv/bin/python3"
+
+# Check if venv exists
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "❌ Error: Virtual environment not found at venv/bin/python3"
+    echo "   Please make sure you're in the correct directory and venv is set up."
+    exit 1
+fi
 
 # Run CCaaS pipeline
 echo "🔄 Running CCaaS pipeline..."
-python3 ccaas_news_pipeline.py
+$VENV_PYTHON ccaas_news_pipeline.py
 
 # Run ES pipeline
 echo "🔄 Running ES pipeline..."
-python3 es_news_pipeline.py
+$VENV_PYTHON es_news_pipeline.py
+
+# Run CX AI pipeline
+echo "🔄 Running CX AI pipeline..."
+$VENV_PYTHON cx_ai_news_pipeline.py
 
 echo ""
 echo "✅ Pipelines completed!"
@@ -27,27 +38,52 @@ echo ""
 TODAY=$(date +%Y-%m-%d)
 CCaaS_FILE="ccaas_news_${TODAY}.csv"
 ES_FILE="es_news_${TODAY}.csv"
+CX_AI_FILE="cx_ai_news_${TODAY}.csv"
 
 # Check if files were created
-if [ ! -f "$CCaaS_FILE" ]; then
+FILES_TO_ADD=()
+if [ -f "$CCaaS_FILE" ]; then
+    FILES_TO_ADD+=("$CCaaS_FILE")
+    echo "✅ Found: $CCaaS_FILE"
+else
     echo "⚠️ Warning: $CCaaS_FILE not found"
 fi
 
-if [ ! -f "$ES_FILE" ]; then
+if [ -f "$ES_FILE" ]; then
+    FILES_TO_ADD+=("$ES_FILE")
+    echo "✅ Found: $ES_FILE"
+else
     echo "⚠️ Warning: $ES_FILE not found"
 fi
 
-# Add CSV files to git (temporarily allow them)
+if [ -f "$CX_AI_FILE" ]; then
+    FILES_TO_ADD+=("$CX_AI_FILE")
+    echo "✅ Found: $CX_AI_FILE"
+else
+    echo "⚠️ Warning: $CX_AI_FILE not found"
+fi
+
+# Only proceed if at least one file was created
+if [ ${#FILES_TO_ADD[@]} -eq 0 ]; then
+    echo "❌ Error: No CSV files were generated. Please check the pipeline logs above."
+    exit 1
+fi
+
+# Add CSV files to git
+echo ""
 echo "📤 Uploading results to GitHub..."
-git add "$CCaaS_FILE" "$ES_FILE" 2>/dev/null || true
+git add "${FILES_TO_ADD[@]}" 2>/dev/null || true
 
 # Commit and push
 if git diff --staged --quiet; then
     echo "ℹ️ No changes to commit (CSVs may already be up to date)"
 else
-    git commit -m "Update news data for ${TODAY}" || echo "⚠️ Nothing to commit"
-    git push || echo "⚠️ Push failed - you may need to push manually"
-    echo "✅ Results uploaded to GitHub!"
+    git commit -m "Update news data for ${TODAY}" || echo "⚠️ Commit failed"
+    if git push; then
+        echo "✅ Results uploaded to GitHub!"
+    else
+        echo "⚠️ Push failed - you may need to push manually with: git push"
+    fi
 fi
 
 echo ""
