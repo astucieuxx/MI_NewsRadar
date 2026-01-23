@@ -682,6 +682,165 @@ def load_news_data(date_str=None):
     return ccaas_df, es_df, cx_ai_df
 
 
+def load_news_data_by_period(period='last_24h'):
+    """Load news data from CSV files based on time period.
+    
+    Args:
+        period: 'last_24h', 'this_week', 'this_month', or 'all_time'
+    
+    Returns:
+        Tuple of (ccaas_df, es_df, cx_ai_df) DataFrames
+    """
+    base_path = Path(".")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    # Determine date range based on period
+    if period == 'last_24h':
+        # Only today's files
+        date_str = datetime.date.today().isoformat()
+        date_range = [date_str]
+    elif period == 'this_week':
+        # Last 7 days
+        date_range = []
+        for i in range(7):
+            date = datetime.date.today() - datetime.timedelta(days=i)
+            date_range.append(date.isoformat())
+    elif period == 'this_month':
+        # Last 30 days
+        date_range = []
+        for i in range(30):
+            date = datetime.date.today() - datetime.timedelta(days=i)
+            date_range.append(date.isoformat())
+    else:  # all_time
+        # All available dates
+        date_range = get_available_dates()
+    
+    # Load all CSV files for the date range
+    ccaas_dfs = []
+    es_dfs = []
+    cx_ai_dfs = []
+    
+    for date_str in date_range:
+        ccaas_file = base_path / f"ccaas_news_{date_str}.csv"
+        es_file = base_path / f"es_news_{date_str}.csv"
+        cx_ai_file = base_path / f"cx_ai_news_{date_str}.csv"
+        
+        if ccaas_file.exists():
+            try:
+                df = pd.read_csv(ccaas_file)
+                df['category'] = 'CCaaS'
+                ccaas_dfs.append(df)
+            except Exception as e:
+                pass
+        
+        if es_file.exists():
+            try:
+                df = pd.read_csv(es_file)
+                df['category'] = 'ES'
+                es_dfs.append(df)
+            except Exception as e:
+                pass
+        
+        if cx_ai_file.exists():
+            try:
+                df = pd.read_csv(cx_ai_file)
+                df['category'] = 'CX AI'
+                cx_ai_dfs.append(df)
+            except Exception as e:
+                pass
+    
+    # Combine all DataFrames
+    if ccaas_dfs:
+        ccaas_df = pd.concat(ccaas_dfs, ignore_index=True)
+    else:
+        ccaas_df = pd.DataFrame()
+    
+    if es_dfs:
+        es_df = pd.concat(es_dfs, ignore_index=True)
+    else:
+        es_df = pd.DataFrame()
+    
+    if cx_ai_dfs:
+        cx_ai_df = pd.concat(cx_ai_dfs, ignore_index=True)
+    else:
+        cx_ai_df = pd.DataFrame()
+    
+    # Filter by published date based on period
+    if period == 'last_24h':
+        cutoff = now - datetime.timedelta(hours=24)
+    elif period == 'this_week':
+        cutoff = now - datetime.timedelta(days=7)
+    elif period == 'this_month':
+        cutoff = now - datetime.timedelta(days=30)
+    else:  # all_time
+        cutoff = None
+    
+    def filter_by_date(df):
+        if df.empty or cutoff is None:
+            return df
+        
+        # Try to parse published date column
+        date_cols = ['published_dt', 'published', 'date']
+        date_col = None
+        for col in date_cols:
+            if col in df.columns:
+                date_col = col
+                break
+        
+        if date_col is None:
+            # If no date column, keep all rows (fallback to file date)
+            return df
+        
+        filtered_rows = []
+        for idx, row in df.iterrows():
+            pub_date = row[date_col]
+            if pd.isna(pub_date) or pub_date == '':
+                # Keep articles without dates
+                filtered_rows.append(idx)
+                continue
+            
+            try:
+                # Try to parse the date
+                if isinstance(pub_date, str):
+                    if 'T' in pub_date:
+                        pub_dt = datetime.datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
+                    else:
+                        pub_dt = datetime.datetime.strptime(pub_date, '%Y-%m-%d')
+                        pub_dt = pub_dt.replace(tzinfo=datetime.timezone.utc)
+                else:
+                    pub_dt = pd.to_datetime(pub_date)
+                    if pub_dt.tzinfo is None:
+                        pub_dt = pub_dt.replace(tzinfo=datetime.timezone.utc)
+                
+                # Normalize to UTC
+                if pub_dt.tzinfo is None:
+                    pub_dt = pub_dt.replace(tzinfo=datetime.timezone.utc)
+                else:
+                    pub_dt = pub_dt.astimezone(datetime.timezone.utc)
+                
+                if pub_dt >= cutoff:
+                    filtered_rows.append(idx)
+            except:
+                # If date parsing fails, keep the article
+                filtered_rows.append(idx)
+        
+        return df.loc[filtered_rows] if filtered_rows else pd.DataFrame()
+    
+    ccaas_df = filter_by_date(ccaas_df)
+    es_df = filter_by_date(es_df)
+    cx_ai_df = filter_by_date(cx_ai_df)
+    
+    # Deduplicate by URL
+    if not ccaas_df.empty:
+        ccaas_df = ccaas_df.drop_duplicates(subset='url', keep='first')
+    if not es_df.empty:
+        es_df = es_df.drop_duplicates(subset='url', keep='first')
+    if not cx_ai_df.empty:
+        cx_ai_df = cx_ai_df.drop_duplicates(subset='url', keep='first')
+    
+    return ccaas_df, es_df, cx_ai_df
+
+
 def get_available_dates():
     """Get list of available dates from CSV files."""
     base_path = Path(".")
@@ -957,29 +1116,49 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
-        # Compact date selection
+        # Time period selection
         st.markdown("""
-        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.5rem;'>Date Selection</div>
+        <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.5rem;'>Time Period</div>
         """, unsafe_allow_html=True)
-        available_dates = get_available_dates()
+        time_period = st.selectbox(
+            "Select time period:",
+            options=['last_24h', 'this_week', 'this_month', 'all_time'],
+            format_func=lambda x: {
+                'last_24h': 'Last 24 Hours',
+                'this_week': 'This Week',
+                'this_month': 'This Month',
+                'all_time': 'All Collected News'
+            }[x],
+            label_visibility="collapsed",
+            index=0
+        )
         
-        # Default to today's date if available, otherwise most recent
-        today_str = datetime.date.today().isoformat()
-        default_index = 0
-        if available_dates and today_str in available_dates:
-            default_index = available_dates.index(today_str)
-        
-        if available_dates:
-            selected_date = st.selectbox(
-                "Choose a date:",
-                options=available_dates,
-                index=default_index,
-                format_func=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d").strftime("%b %d, %Y"),
-                label_visibility="collapsed"
-            )
+        # Date selection (only shown for last_24h)
+        if time_period == 'last_24h':
+            st.markdown("""
+            <div style='font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; margin-top: 0.5rem;'>Date Selection</div>
+            """, unsafe_allow_html=True)
+            available_dates = get_available_dates()
+            
+            # Default to today's date if available, otherwise most recent
+            today_str = datetime.date.today().isoformat()
+            default_index = 0
+            if available_dates and today_str in available_dates:
+                default_index = available_dates.index(today_str)
+            
+            if available_dates:
+                selected_date = st.selectbox(
+                    "Choose a date:",
+                    options=available_dates,
+                    index=default_index,
+                    format_func=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d").strftime("%b %d, %Y"),
+                    label_visibility="collapsed"
+                )
+            else:
+                selected_date = datetime.date.today().isoformat()
+                st.warning("No CSV files found.")
         else:
-            selected_date = datetime.date.today().isoformat()
-            st.warning("No CSV files found.")
+            selected_date = None  # Not used for period-based loading
         
         # Compact relevance filters
         st.markdown("""
@@ -1010,20 +1189,39 @@ def main():
     # Header without container box - after sidebar (only once)
     st.markdown('<div class="main-header">News Radar</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Your morning briefing for CCaaS & Employee Service news</div>', unsafe_allow_html=True)
-    st.markdown('<div class="info-text">Compilation of relevant news from the last 24 hours</div>', unsafe_allow_html=True)
     
-    # Load data
-    ccaas_df, es_df, cx_ai_df = load_news_data(selected_date)
+    # Update info text based on time period
+    period_text = {
+        'last_24h': 'Compilation of relevant news from the last 24 hours',
+        'this_week': 'Compilation of relevant news from the last 7 days',
+        'this_month': 'Compilation of relevant news from the last 30 days',
+        'all_time': 'All collected news from the database'
+    }
+    st.markdown(f'<div class="info-text">{period_text[time_period]}</div>', unsafe_allow_html=True)
+    
+    # Load data based on time period
+    if time_period == 'last_24h':
+        ccaas_df, es_df, cx_ai_df = load_news_data(selected_date)
+    else:
+        ccaas_df, es_df, cx_ai_df = load_news_data_by_period(time_period)
     
     # Combine dataframes (excluding cx_ai_df - it's handled separately for CX AI tab)
     all_news = []
-    if ccaas_df is not None and not ccaas_df.empty:
+    if ccaas_df is not None and isinstance(ccaas_df, pd.DataFrame) and not ccaas_df.empty:
         all_news.append(ccaas_df)
-    if es_df is not None and not es_df.empty:
+    if es_df is not None and isinstance(es_df, pd.DataFrame) and not es_df.empty:
         all_news.append(es_df)
     
     if not all_news:
-        st.error(f"❌ No news data found for {datetime.datetime.strptime(selected_date, '%Y-%m-%d').strftime('%B %d, %Y')}")
+        if time_period == 'last_24h' and selected_date:
+            st.error(f"❌ No news data found for {datetime.datetime.strptime(selected_date, '%Y-%m-%d').strftime('%B %d, %Y')}")
+        else:
+            period_display = {
+                'this_week': 'the last 7 days',
+                'this_month': 'the last 30 days',
+                'all_time': 'all time'
+            }
+            st.error(f"❌ No news data found for {period_display.get(time_period, 'the selected period')}")
         st.info("💡 Make sure you've run the news pipelines to generate CSV files.")
         return
     
