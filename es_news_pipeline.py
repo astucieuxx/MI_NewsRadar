@@ -40,10 +40,13 @@ SOURCES = {
 
 # Keep dated articles from the last N hours
 # (undated ones are still kept and then filtered by ES relevance)
-MAX_AGE_HOURS = 48  # changed to 48 hours for today only
+MAX_AGE_HOURS = int(os.getenv("MAX_AGE_HOURS", "48"))  # default 48
 
 # Limit number of articles per source per run (safety for very long pages)
-MAX_ARTICLES_PER_SOURCE = 25
+MAX_ARTICLES_PER_SOURCE = int(os.getenv("MAX_ARTICLES_PER_SOURCE", "25"))
+
+# Optional: skip undated articles to speed up runs
+SKIP_UNDATED = os.getenv("SKIP_UNDATED", "false").lower() in ("1", "true", "yes")
 
 # Be nice to news sites and your gateway
 REQUEST_TIMEOUT = 15
@@ -505,7 +508,8 @@ def run_pipeline():
         pub_dt = art["published_dt"]
 
         if pub_dt is None:
-            nodate_articles.append(art)
+            if not SKIP_UNDATED:
+                nodate_articles.append(art)
             continue
 
         # Normalise to UTC and compute age
